@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 14px;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #0f0f11;
+        color: #f4f4f5;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+      .badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #27272a;
+      }
+      .online {
+        color: #34d399;
+      }
+      .offline {
+        color: #fbbf24;
+      }
+      p {
+        font-size: 12px;
+        color: #a1a1aa;
+        margin: 6px 0 0;
+      }
+      .section-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #71717a;
+        margin: 14px 0 6px;
+      }
+      .media-list {
+        max-height: 200px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .media-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: #18181b;
+        border: 1px solid #27272a;
+      }
+      .media-url {
+        font-size: 11px;
+        color: #e4e4e7;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+      .media-kind {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: #1d4ed8;
+        color: #fff;
+      }
+      button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <strong>danDown Bridge</strong>
+      <span id="status" class="badge">Checking…</span>
+    </div>
+    <p>Automatically intercepts browser downloads (&ge; 1 MB) when danDown is running.</p>
+    <div class="row">
+      <label for="toggle" style="font-size: 13px">Auto-intercept downloads</label>
+      <input id="toggle" type="checkbox" checked />
+    </div>
+
+    <div class="section-title">Detected Media on This Tab</div>
+    <div id="media-list" class="media-list">
+      <p id="media-empty">No streams detected yet. Play a video to capture it.</p>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

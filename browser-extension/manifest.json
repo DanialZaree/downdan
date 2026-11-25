@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "danDown Download Manager Integration",
+  "version": "0.3.0",
+  "description": "Intercepts browser downloads, sniffs playing video/audio streams (.m3u8, .mpd, .mp4), and sends them to danDown.",
+  "permissions": [
+    "downloads",
+    "cookies",
+    "contextMenus",
+    "storage",
+    "notifications",
+    "webRequest",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "danDown Integration",
+    "default_popup": "popup.html"
+  }
+}
