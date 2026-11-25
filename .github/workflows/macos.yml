@@ -1,0 +1,86 @@
+name: publish-macos
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish-tauri-macos:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            target: 'aarch64-apple-darwin'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-15-intel'
+            target: 'x86_64-apple-darwin'
+            args: '--target x86_64-apple-darwin'
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install and bundle aria2c sidecar
+        shell: bash
+        run: |
+          brew install aria2
+          node scripts/prepare-sidecar.mjs --target ${{ matrix.target }}
+
+      - name: install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Get version from tauri.conf.json
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build & Draft Release (macOS)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQLX_OFFLINE: 'true'
+        with:
+          projectPath: .
+          tagName: v${{ steps.version.outputs.version }}
+          releaseName: 'danDown v${{ steps.version.outputs.version }}'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: List built files (debug)
+        run: |
+          echo "==== Bundle tree (macOS) ===="
+          ls -R src-tauri/target/release/bundle || true
+
+      - name: Upload artifacts (fallback)
+        uses: actions/upload-artifact@v4
+        with:
+          name: danDown-macos-${{ matrix.platform }}-${{ github.run_number }}
+          path: src-tauri/target/release/bundle/**

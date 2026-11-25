@@ -1,0 +1,20 @@
+mod chunk;
+mod disk;
+mod path;
+mod remove;
+mod writer;
+
+pub use writer::FileWriterHandle;
+
+#[derive(Clone, Debug)]
+pub struct File;
+
+impl File {
+    pub async fn new(
+        download_id: i64,
+        file_path: &str,
+        total_bytes: u64,
+    ) -> anyhow::Result<FileWriterHandle> {
+        Self::setup_file_writer(download_id, file_path, total_bytes).await
+    }
+}

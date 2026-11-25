@@ -1,0 +1,113 @@
+use super::super::{Buffer, Registry};
+use anyhow::anyhow;
+use tokio::sync::Mutex;
+use tokio_util::bytes::BytesMut;
+
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+
+pub trait ReportActions {
+    async fn update_network_report(download_id: i64, bytes_len: u64) -> anyhow::Result<()>;
+    async fn update_disk_report(
+        download_id: i64,
+        chunk_index: i64,
+        bytes_len: u64,
+    ) -> anyhow::Result<()>;
+    async fn update_chunk_buffer_report(
+        download_id: i64,
+        chunk_index: i64,
+        bytes: Vec<u8>,
+    ) -> anyhow::Result<()>;
+}
+
+impl ReportActions for Registry {
+    async fn update_disk_report(
+        download_id: i64,
+        chunk_index: i64,
+        bytes_len: u64,
+    ) -> anyhow::Result<()> {
+        let reports = Arc::clone(&Self::get_state().reports);
+        let maybe_report = reports.get(&download_id);
+        if let Some(report) = maybe_report {
+            report
+                .chunks_wrote_bytes
+                .entry(chunk_index as i64)
+                .and_modify(|atomic| {
+                    atomic.fetch_add(bytes_len, Ordering::Relaxed);
+                })
+                .or_insert(AtomicU64::new(bytes_len));
+
+            report
+                .total_wrote_bytes
+                .fetch_add(bytes_len, Ordering::Relaxed);
+
+            report.wrote_bytes.fetch_add(bytes_len, Ordering::Relaxed);
+        }
+
+        Ok(())
+    }
+
+    async fn update_network_report(download_id: i64, bytes_len: u64) -> anyhow::Result<()> {
+        let reports = Arc::clone(&Self::get_state().reports);
+        let maybe_report = reports.get(&download_id);
+        if let Some(report) = maybe_report {
+            report
+                .total_downloaded_bytes
+                .fetch_add(bytes_len, Ordering::Relaxed);
+
+            report
+                .downloaded_bytes
+                .fetch_add(bytes_len, Ordering::Relaxed);
+        }
+
+        Ok(())
+    }
+
+    async fn update_chunk_buffer_report(
+        download_id: i64,
+        chunk_index: i64,
+        bytes: Vec<u8>,
+    ) -> anyhow::Result<()> {
+        let reports = Arc::clone(&Self::get_state().reports);
+        let report = reports.get(&download_id).ok_or_else(|| {
+            anyhow!(
+                "update chunk buffer error: cannot find report with download id {}",
+                download_id
+            )
+        })?;
+
+        let buffer = report
+            .buffer
+            .entry(chunk_index)
+            .or_insert_with(|| {
+                Arc::new(Mutex::new(Buffer {
+                    first: BytesMut::with_capacity(1024),
+                    last: BytesMut::with_capacity(1024),
+                }))
+            })
+            .clone();
+
+        let mut buffer = buffer.lock().await;
+
+        if buffer.first.len() < 1024 {
+            let remaining = 1024 - buffer.first.len();
+            let take = remaining.min(bytes.len());
+            buffer.first.extend_from_slice(&bytes[..take]);
+        }
+
+        if bytes.len() >= 1024 {
+            buffer.last.clear();
+            buffer.last.extend_from_slice(&&bytes[bytes.len() - 1024..]);
+        } else {
+            buffer.last.extend_from_slice(&bytes);
+            if buffer.last.len() > 1024 {
+                let drop = buffer.last.len() - 1024;
+                let _ = buffer.last.split_to(drop);
+            }
+        }
+
+        Ok(())
+    }
+}

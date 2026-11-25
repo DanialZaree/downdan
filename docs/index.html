@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>danDown – Modern Download Manager</title>
+    <meta
+      name="description"
+      content="danDown is a modern, fast, and extensible download manager built with Rust, Tauri, Next.js + shadcn/ui, and SQLite."
+    />
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:title" content="danDown – Modern Download Manager" />
+    <meta
+      property="og:description"
+      content="Fast, resumable, chunked downloads with a sleek UI. Built with Rust & Tauri."
+    />
+    <meta property="og:image" content="./screenshot.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Tailwind via CDN (no build step) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- GitHub button script -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      html,
+      body {
+        font-family:
+          'Inter',
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Ubuntu,
+          Cantarell,
+          'Helvetica Neue',
+          Arial,
+          'Noto Sans',
+          'Apple Color Emoji',
+          'Segoe UI Emoji',
+          'Segoe UI Symbol';
+      }
+      /* Subtle gradient background */
+      .bg-grid {
+        background-image: radial-gradient(currentColor 1px, transparent 1px);
+        background-size: 12px 12px;
+        opacity: 0.04;
+        pointer-events: none;
+      }
+    </style>
+
+    <script>
+      // Theme handling (system by default)
+      const storedTheme = localStorage.getItem('theme');
+      if (
+        storedTheme === 'dark' ||
+        (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ) {
+        document.documentElement.classList.add('dark');
+      }
+      function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      }
+    </script>
+  </head>
+  <body class="bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+    <!-- Top Nav -->
+    <header
+      class="sticky top-0 z-30 border-b border-black/5 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-white/5 dark:supports-[backdrop-filter]:bg-gray-900/60"
+    >
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <a href="#" class="flex items-center gap-3">
+          <img src="./logo.png" alt="danDown logo" class="h-8 w-8" />
+          <span class="font-semibold tracking-tight">danDown</span>
+        </a>
+        <nav class="hidden items-center gap-6 text-sm md:flex">
+          <a href="#features" class="opacity-80 hover:opacity-100">Features</a>
+          <a href="#architecture" class="opacity-80 hover:opacity-100">Architecture</a>
+          <a href="#download" class="opacity-80 hover:opacity-100">Download</a>
+          <a href="https://github.com/mehrantaslimi/danDown" class="opacity-80 hover:opacity-100"
+            >GitHub</a
+          >
+        </nav>
+        <div class="flex items-center gap-3">
+          <a
+            class="github-button"
+            href="https://github.com/mehrantaslimi/danDown"
+            data-icon="octicon-star"
+            data-size="large"
+            data-show-count="true"
+            aria-label="Star danDown on GitHub"
+            >Star</a
+          >
+          <button
+            onclick="toggleTheme()"
+            class="inline-flex items-center rounded-xl border border-black/10 px-3 py-1.5 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+          >
+            Toggle theme
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="relative">
+      <div class="bg-grid absolute inset-0"></div>
+      <div class="mx-auto max-w-6xl px-4 pt-16 pb-10">
+        <div class="grid items-center gap-10 md:grid-cols-2">
+          <div>
+            <div
+              class="mb-4 inline-flex items-center gap-2 rounded-full border border-black/10 px-3 py-1 text-xs dark:border-white/10"
+            >
+              <span class="opacity-70">New</span>
+              <span class="font-medium">Modern download manager</span>
+            </div>
+            <h1 class="text-4xl leading-tight font-extrabold tracking-tight md:text-5xl">
+              danDown 🦀 — fast, resumable downloads with a clean UI
+            </h1>
+            <p class="mt-4 text-lg opacity-80">
+              Built with <b>Rust</b> & <b>Tauri</b> for performance and safety, and
+              <b>Next.js + shadcn/ui</b> for a sleek frontend. Handles real‑world network
+              instability like a pro.
+            </p>
+            <div class="mt-6 flex flex-wrap items-center gap-3" id="download">
+              <a
+                href="https://github.com/mehrantaslimi/danDown/releases/latest"
+                class="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 font-medium text-white hover:opacity-90 dark:bg-white dark:text-gray-900"
+              >
+                <span>Download</span>
+              </a>
+              <a
+                href="https://github.com/mehrantaslimi/danDown"
+                class="inline-flex items-center gap-2 rounded-xl border border-black/10 px-4 py-2.5 font-medium hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                >View on GitHub</a
+              >
+              <a
+                href="#features"
+                class="inline-flex items-center gap-2 rounded-xl border border-black/10 px-4 py-2.5 font-medium hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                >See features</a
+              >
+            </div>
+            <p class="mt-3 text-xs opacity-70">macOS • Windows • Linux</p>
+          </div>
+          <div class="relative">
+            <div
+              class="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-indigo-500/10 via-blue-500/10 to-emerald-500/10 blur-2xl"
+            ></div>
+            <img
+              src="./screenshot.png"
+              alt="danDown app screenshot"
+              class="rounded-2xl shadow-2xl"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logos / Stack -->
+    <section class="mx-auto max-w-6xl px-4 py-10">
+      <div class="grid grid-cols-2 gap-4 text-center text-xs opacity-70 sm:grid-cols-4">
+        <div class="rounded-xl border border-black/10 px-4 py-3 dark:border-white/10">Rust</div>
+        <div class="rounded-xl border border-black/10 px-4 py-3 dark:border-white/10">Tauri</div>
+        <div class="rounded-xl border border-black/10 px-4 py-3 dark:border-white/10">
+          Next.js + shadcn/ui
+        </div>
+        <div class="rounded-xl border border-black/10 px-4 py-3 dark:border-white/10">SQLite</div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="mx-auto max-w-6xl px-4 py-12">
+      <h2 class="text-2xl font-bold tracking-tight md:text-3xl">Features</h2>
+      <p class="mt-2 opacity-80">Everything you need for reliable, blazing‑fast downloads.</p>
+      <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Parallel & Chunked</h3>
+          <p class="mt-2 text-sm opacity-80">
+            Splits files into chunks to maximize throughput and resume effectively.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Crash‑safe Progress</h3>
+          <p class="mt-2 text-sm opacity-80">
+            Persists progress with SQLite to survive restarts and power loss.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Clean, Minimal UI</h3>
+          <p class="mt-2 text-sm opacity-80">
+            Built with Next.js + shadcn/ui for a crisp, distraction‑free experience.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Smart Retries</h3>
+          <p class="mt-2 text-sm opacity-80">
+            Automatic backoff and per‑chunk retries for flaky networks.
+          </p>
+        </div>
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Proxy & Auth</h3>
+          <p class="mt-2 text-sm opacity-80">Works with common auth schemes and proxy setups.</p>
+        </div>
+        <div class="rounded-2xl border border-black/10 p-6 dark:border-white/10">
+          <h3 class="font-semibold">Cross‑platform</h3>
+          <p class="mt-2 text-sm opacity-80">
+            macOS, Windows, and Linux builds available in Releases.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture (short) -->
+    <section id="architecture" class="mx-auto max-w-6xl px-4 py-12">
+      <div class="rounded-3xl border border-black/10 p-8 dark:border-white/10">
+        <h2 class="text-2xl font-bold tracking-tight md:text-3xl">Architecture</h2>
+        <p class="mt-3 opacity-80">danDown pairs a high‑performance backend with a modern web UI:</p>
+        <ul class="mt-4 list-disc space-y-2 pl-6 opacity-90">
+          <li>
+            <b>Rust + Tokio + Tauri</b> backend orchestrates workers, manages concurrency, and
+            ensures safety.
+          </li>
+          <li><b>Next.js + shadcn/ui</b> frontend provides a reactive, minimal interface.</li>
+          <li><b>SQLite</b> stores download states and chunk checkpoints for robust resume.</li>
+        </ul>
+        <p class="mt-4 text-sm opacity-70">
+          Curious? Read the source or open an issue — contributions welcome.
+        </p>
+      </div>
+    </section>
+
+    <!-- Callout / CTA -->
+    <section class="mx-auto max-w-6xl px-4 pb-16">
+      <div
+        class="rounded-3xl border border-black/10 bg-gray-50 p-8 md:p-10 dark:border-white/10 dark:bg-white/5"
+      >
+        <div class="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+          <div>
+            <h3 class="text-xl font-semibold md:text-2xl">Ready to try danDown?</h3>
+            <p class="mt-1 opacity-80">
+              Grab the latest release and give it a spin. If you like it, drop a ⭐ on GitHub!
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <a
+              href="https://github.com/mehrantaslimi/danDown/releases/latest"
+              class="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 font-medium text-white hover:opacity-90 dark:bg-white dark:text-gray-900"
+              >Download latest</a
+            >
+            <a
+              href="https://github.com/mehrantaslimi/danDown"
+              class="inline-flex items-center gap-2 rounded-xl border border-black/10 px-4 py-2.5 font-medium hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+              >GitHub repo</a
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="border-t border-black/5 dark:border-white/5">
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm md:flex-row"
+      >
+        <p class="opacity-70">© 2025 Mehran Taslimi. Built with ❤️ in Rust & Tauri.</p>
+        <div class="flex items-center gap-4 opacity-80">
+          <a href="https://github.com/mehrantaslimi/danDown/issues" class="hover:opacity-100"
+            >Report an issue</a
+          >
+          <a href="https://github.com/mehrantaslimi/danDown#readme" class="hover:opacity-100"
+            >README</a
+          >
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
