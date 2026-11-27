@@ -17,6 +17,54 @@ pub async fn check_aria2_status(custom_path: Option<String>) -> Aria2StatusInfo 
 }
 
 #[tauri::command]
+pub async fn open_extension_folder(app: tauri::AppHandle) -> Result<String, String> {
+    let mut candidates = Vec::new();
+    if let Ok(res_dir) = app.path().resource_dir() {
+        candidates.push(res_dir.join("browser-extension"));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("browser-extension"));
+        if let Some(parent) = cwd.parent() {
+            candidates.push(parent.join("browser-extension"));
+        }
+    }
+
+    let found = candidates
+        .into_iter()
+        .find(|p| p.is_dir())
+        .ok_or_else(|| "browser-extension folder not found".to_string())?;
+
+    let cleaned = found
+        .to_string_lossy()
+        .trim_start_matches(r"\\?\")
+        .to_string();
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&cleaned)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&cleaned)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&cleaned)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(cleaned)
+}
+
+#[tauri::command]
 pub async fn add_new_download(url: String, options: DownloadOptions) -> Result<(), String> {
     DownloadsManager::add_new_download(url, options).await
 }

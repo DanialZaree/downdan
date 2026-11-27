@@ -1,13 +1,26 @@
 const statusEl = document.getElementById('status');
-const toggleEl = document.getElementById('toggle');
+const toggleIntercept = document.getElementById('toggle-intercept');
+const togglePopup = document.getElementById('toggle-popup');
+const toggleFloating = document.getElementById('toggle-floating');
 const mediaListEl = document.getElementById('media-list');
 
-chrome.storage.local.get('autoIntercept', ({ autoIntercept = true }) => {
-  toggleEl.checked = Boolean(autoIntercept);
-});
+chrome.storage.local.get(
+  { autoIntercept: true, showPopup: true, floatingButton: true },
+  (prefs) => {
+    toggleIntercept.checked = Boolean(prefs.autoIntercept);
+    togglePopup.checked = Boolean(prefs.showPopup);
+    toggleFloating.checked = Boolean(prefs.floatingButton);
+  },
+);
 
-toggleEl.addEventListener('change', () => {
-  chrome.storage.local.set({ autoIntercept: toggleEl.checked });
+toggleIntercept.addEventListener('change', () => {
+  chrome.storage.local.set({ autoIntercept: toggleIntercept.checked });
+});
+togglePopup.addEventListener('change', () => {
+  chrome.storage.local.set({ showPopup: togglePopup.checked });
+});
+toggleFloating.addEventListener('change', () => {
+  chrome.storage.local.set({ floatingButton: toggleFloating.checked });
 });
 
 fetch('http://127.0.0.1:17890/ping')
@@ -40,20 +53,30 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const label = document.createElement('span');
       label.className = 'media-url';
       label.title = item.url;
-      label.textContent =
-        item.title || item.url.split('/').pop()?.split('?')[0] || item.url;
+      label.textContent = item.title || item.url.split('/').pop()?.split('?')[0] || item.url;
 
       const btn = document.createElement('button');
       btn.textContent = 'Download';
       btn.addEventListener('click', () => {
-        btn.disabled = true;
-        btn.textContent = 'Sent';
-        chrome.runtime.sendMessage({
-          type: 'SEND_TO_danDown',
-          url: item.url,
-          title: item.title || activeTab.title,
-          referrer: item.referrer || activeTab.url,
-        });
+        if (togglePopup.checked) {
+          chrome.runtime.sendMessage({
+            type: 'OPEN_CAPTURE_POPUP',
+            url: item.url,
+            title: item.title || activeTab.title,
+            referrer: item.referrer || activeTab.url,
+            kind: item.type,
+          });
+          window.close();
+        } else {
+          btn.disabled = true;
+          btn.textContent = 'Sent';
+          chrome.runtime.sendMessage({
+            type: 'SEND_TO_DANDOWN',
+            url: item.url,
+            title: item.title || activeTab.title,
+            referrer: item.referrer || activeTab.url,
+          });
+        }
       });
 
       row.append(kind, label, btn);

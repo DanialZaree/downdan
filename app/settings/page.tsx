@@ -75,11 +75,23 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const syncDefaultsToBridge = useCallback((next: AppSettings) => {
+    fetch('http://127.0.0.1:17890/defaults', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        default_download_dir: next.defaultDownloadDir || null,
+        chunk_count: next.chunkCount,
+      }),
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const loaded = getAppSettings();
     setSettings(loaded);
     refreshAria2Status(loaded.aria2Path);
-  }, [refreshAria2Status]);
+    syncDefaultsToBridge(loaded);
+  }, [refreshAria2Status, syncDefaultsToBridge]);
 
   useEffect(() => {
     let active = true;
@@ -104,6 +116,7 @@ export default function SettingsPage() {
     setSettings((prev) => {
       const next = { ...prev, ...patch };
       saveAppSettings(next);
+      syncDefaultsToBridge(next);
       return next;
     });
   };
@@ -466,19 +479,37 @@ export default function SettingsPage() {
               </li>
               <li>
                 Click <b>Load unpacked</b> and select the{' '}
-                <code className="text-foreground">browser-extension</code> folder inside your danDown
-                project directory.
+                <code className="text-foreground">browser-extension</code> folder inside your
+                danDown project directory.
               </li>
               <li>
                 Toggle auto-intercept in the extension popup or right-click any link and choose{' '}
                 <b>Download with danDown</b>.
               </li>
             </ol>
-            <div className="flex items-center gap-2 pt-1">
-              <Globe className="text-muted-foreground h-4 w-4" />
-              <span className="text-muted-foreground text-xs">
-                Local capture endpoint: <code>http://127.0.0.1:17890/download</code>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="flex items-center gap-2">
+                <Globe className="text-muted-foreground h-4 w-4" />
+                <span className="text-muted-foreground text-xs">
+                  Local capture endpoint: <code>http://127.0.0.1:17890/download</code>
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const extPath = await invoke<string>('open_extension_folder');
+                    toast.success('Opened extension folder', { description: extPath });
+                  } catch (err) {
+                    toast.error('Could not open extension folder', { description: String(err) });
+                  }
+                }}
+              >
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                Open Extension Folder
+              </Button>
             </div>
           </AccordionContent>
         </AccordionItem>

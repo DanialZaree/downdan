@@ -50,11 +50,24 @@ struct Aria2Runtime {
     client: Aria2Client,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct LiveProgress {
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+    pub speed_bps: u64,
+    pub eta_secs: u64,
+}
+
 static RUNTIME: Lazy<Mutex<Option<Aria2Runtime>>> = Lazy::new(|| Mutex::new(None));
 static SIDECAR_CLIENT: Lazy<Mutex<Option<Aria2Client>>> = Lazy::new(|| Mutex::new(None));
 static ACTIVE_GIDS: Lazy<DashMap<i64, String>> = Lazy::new(DashMap::new);
 static KNOWN_TOTALS: Lazy<DashMap<i64, u64>> = Lazy::new(DashMap::new);
+static LIVE_PROGRESS: Lazy<DashMap<i64, LiveProgress>> = Lazy::new(DashMap::new);
 static POLLER_RUNNING: AtomicBool = AtomicBool::new(false);
+
+pub fn get_live_progress(download_id: i64) -> Option<LiveProgress> {
+    LIVE_PROGRESS.get(&download_id).map(|v| *v)
+}
 
 /// Registers the bundled `aria2c` sidecar's `Aria2Client` so all downloads reuse
 /// the same daemon without spawning a second `aria2c` process.
@@ -375,10 +388,16 @@ pub async fn start_download(download_id: i64, options: &DownloadOptions) -> Resu
 
     let client = ensure_daemon(options.aria2_path.as_deref()).await?;
 
-    let dir = Path::new(&download.file_path)
+    let raw_dir = Path::new(&download.file_path)
         .parent()
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|| ".".to_string());
+    let cleaned_dir = raw_dir.trim_start_matches(r"\\?\");
+    let dir = if cfg!(windows) {
+        cleaned_dir.replace('\\', "/")
+    } else {
+        cleaned_dir.to_string()
+    };
 
     let out_name = (!download.url.to_ascii_lowercase().starts_with("magnet:"))
         .then_some(download.file_name.as_str());
@@ -464,6 +483,7 @@ pub async fn remove_download(download_id: i64, remove_file: bool) -> Result<(), 
     if remove_file {
         let _ = File::remove_file(&file_path);
     }
+    Emitter::emit_event("download_removed", download_id);
     Ok(())
 }
 
@@ -559,6 +579,16 @@ async fn poll_single(client: &Aria2Client, download_id: i64, gid: &str) -> Resul
     let speed_kb = task.download_speed / 1024;
     let remaining_time = task.eta_seconds.unwrap_or(0);
 
+    LIVE_PROGRESS.insert(
+        download_id,
+        LiveProgress {
+            downloaded_bytes: task.completed_length,
+            total_bytes: task.total_length,
+            speed_bps: task.download_speed,
+            eta_secs: remaining_time,
+        },
+    );
+
     Emitter::emit_event(&format!("downloaded_bytes_{download_id}"), task.completed_length);
     Emitter::emit_event(&format!("wrote_bytes_{download_id}"), task.completed_length);
     Emitter::emit_event(&format!("disk_speed_{download_id}"), speed_kb);
@@ -592,6 +622,7 @@ async fn poll_single(client: &Aria2Client, download_id: i64, gid: &str) -> Resul
         "complete" => {
             ACTIVE_GIDS.remove(&download_id);
             KNOWN_TOTALS.remove(&download_id);
+            LIVE_PROGRESS.remove(&download_id);
             let final_bytes = task.total_length.max(task.completed_length) as i64;
             persist_chunk_progress(download_id, final_bytes).await;
             let _ = DownloadRepository::update(
@@ -612,6 +643,7 @@ async fn poll_single(client: &Aria2Client, download_id: i64, gid: &str) -> Resul
         "error" => {
             ACTIVE_GIDS.remove(&download_id);
             KNOWN_TOTALS.remove(&download_id);
+            LIVE_PROGRESS.remove(&download_id);
             let is_tls_error = task
                 .error_message
                 .as_deref()

@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
-use std::path::PathBuf;
+use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
+use std::{path::PathBuf, str::FromStr};
 
 impl super::Registry {
     pub fn get_pool() -> &'static SqlitePool {
@@ -7,34 +7,32 @@ impl super::Registry {
     }
 
     pub(super) async fn init_db(path: &Result<PathBuf, tauri::Error>) -> SqlitePool {
-        let db_url = {
-            if cfg!(debug_assertions) {
-                std::env::var("DATABASE_URL")
-                    .unwrap_or_else(|_| "sqlite://./database.db?mode=rwc".to_string())
+        let opts = if cfg!(debug_assertions) {
+            if let Ok(raw_url) = std::env::var("DATABASE_URL") {
+                SqliteConnectOptions::from_str(&raw_url)
+                    .expect("invalid DATABASE_URL")
+                    .create_if_missing(true)
+                    .foreign_keys(true)
             } else {
-                let data_path = path.as_ref().expect("failed to get app data directory");
-                let is_exist = std::fs::metadata(data_path).is_ok();
-
-                if !is_exist {
-                    std::fs::create_dir_all(data_path)
-                        .expect("faild to create danDown data directory");
-                };
-
-                let db_path = data_path
-                    .join("database.db?mode=rwc")
-                    .to_string_lossy()
-                    .to_string();
-
-                format!("sqlite://{}", db_path)
+                SqliteConnectOptions::new()
+                    .filename("database.db")
+                    .create_if_missing(true)
+                    .foreign_keys(true)
             }
+        } else {
+            let data_path = path.as_ref().expect("failed to get app data directory");
+            if std::fs::metadata(data_path).is_err() {
+                std::fs::create_dir_all(data_path)
+                    .expect("failed to create danDown data directory");
+            }
+            let db_file = data_path.join("database.db");
+            SqliteConnectOptions::new()
+                .filename(db_file)
+                .create_if_missing(true)
+                .foreign_keys(true)
         };
 
-        let pool = SqlitePool::connect(&db_url).await.unwrap();
-
-        sqlx::query!("PRAGMA foreign_keys = ON;")
-            .execute(&pool)
-            .await
-            .unwrap();
+        let pool = SqlitePool::connect_with(opts).await.unwrap();
 
         sqlx::migrate!().run(&pool).await.unwrap();
 

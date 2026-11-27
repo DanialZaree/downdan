@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import DownloadBar from '@/components/download-bar';
 import { EmptyDownloadsIntro } from '@/components/empty-download-intro';
 import { Button } from '@/components/ui/button';
+import { getAppSettings } from '@/lib/app-settings';
 
 import { useDownloads } from '../components/download-context';
 import DownloadItem from '../components/download-item';
@@ -36,6 +37,18 @@ export default function Page() {
 
   const prevStatus = useRef<Map<number, Status>>(new Map());
   const [justPromotedId, setJustPromotedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const s = getAppSettings();
+    fetch('http://127.0.0.1:17890/defaults', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        default_download_dir: s.defaultDownloadDir || null,
+        chunk_count: s.chunkCount,
+      }),
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const unlisten = listen<string>('error', (ev) => {
@@ -133,17 +146,13 @@ export default function Page() {
   const handlePauseAll = async () => {
     const targets = ordered.filter(
       (d) =>
-        d.status === Status.Downloading ||
-        d.status === Status.Queued ||
-        d.status === Status.Trying,
+        d.status === Status.Downloading || d.status === Status.Queued || d.status === Status.Trying,
     );
     await Promise.all(targets.map((d) => invoke('pause_download', { id: d.id })));
   };
 
   const handleResumeAll = async () => {
-    const targets = ordered.filter(
-      (d) => d.status === Status.Paused || d.status === Status.Failed,
-    );
+    const targets = ordered.filter((d) => d.status === Status.Paused || d.status === Status.Failed);
     await Promise.all(targets.map((d) => invoke('resume_download', { id: d.id })));
   };
 

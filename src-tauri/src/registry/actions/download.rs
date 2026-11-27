@@ -102,6 +102,8 @@ impl DownloadActions for Registry {
             File::remove_file(&file_path)?;
         }
 
+        Emitter::emit_event("download_removed", download_id);
+
         Ok(())
     }
 

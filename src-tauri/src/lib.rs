@@ -1,4 +1,12 @@
-use std::sync::Arc;
+use std::{
+    io::Write,
+    net::{SocketAddr, TcpStream},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use log::warn;
 use tauri::{
@@ -6,6 +14,8 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, RunEvent,
 };
+
+static TRAY_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 mod aria2;
 mod bridge;
@@ -26,6 +36,65 @@ mod macros;
 
 use crate::engine::{sidecar, spawn_sync_loop, EngineState};
 use crate::registry::Registry;
+
+fn notify_existing_instance(silent_wake: bool) -> bool {
+    let addr: SocketAddr = "127.0.0.1:17890".parse().unwrap();
+    let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_millis(150)) else {
+        return false;
+    };
+    if !silent_wake {
+        let _ = stream.write_all(
+            b"POST /show HTTP/1.1\r\nHost: 127.0.0.1:17890\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+    }
+    true
+}
+
+#[cfg(target_os = "windows")]
+fn register_url_protocol() {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let exe_str = exe.to_string_lossy().trim_start_matches(r"\\?\").to_string();
+    let cmd_val = format!("\"{exe_str}\" \"%1\"");
+
+    let _ = std::process::Command::new("reg.exe")
+        .args([
+            "add",
+            r"HKCU\Software\Classes\dandown",
+            "/ve",
+            "/d",
+            "URL:danDown Protocol",
+            "/f",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg.exe")
+        .args([
+            "add",
+            r"HKCU\Software\Classes\dandown",
+            "/v",
+            "URL Protocol",
+            "/d",
+            "",
+            "/f",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg.exe")
+        .args([
+            "add",
+            r"HKCU\Software\Classes\dandown\shell\open\command",
+            "/ve",
+            "/d",
+            &cmd_val,
+            "/f",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+}
 
 fn setup_system_tray(app: &tauri::App) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, "show", "Show danDown", true, None::<&str>)?;
@@ -67,6 +136,8 @@ fn setup_system_tray(app: &tauri::App) -> tauri::Result<()> {
 
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
+    } else {
+        builder = builder.icon(tauri::include_image!("icons/32x32.png"));
     }
 
     builder.build(app)?;
@@ -76,6 +147,18 @@ fn setup_system_tray(app: &tauri::App) -> tauri::Result<()> {
 #[tokio::main]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
+    let args: Vec<String> = std::env::args().collect();
+    let is_silent_wake = args
+        .iter()
+        .any(|a| a.starts_with("dandown://") || a == "--background");
+
+    if notify_existing_instance(is_silent_wake) {
+        return;
+    }
+
+    #[cfg(target_os = "windows")]
+    register_url_protocol();
+
     dotenvy::dotenv().ok();
     env_logger::builder()
         .format_module_path(false)
@@ -96,6 +179,7 @@ pub async fn run() {
             command::import_dropped_files,
             command::update_download_url,
             command::check_aria2_status,
+            command::open_extension_folder,
             command::get_download_list,
             command::resume_download,
             command::pause_download,
@@ -117,8 +201,9 @@ pub async fn run() {
         .setup(move |app| {
             let app_handle = app.app_handle().clone();
 
-            if let Err(err) = setup_system_tray(app) {
-                warn!("failed to initialize system tray: {err}");
+            match setup_system_tray(app) {
+                Ok(()) => TRAY_AVAILABLE.store(true, Ordering::SeqCst),
+                Err(err) => warn!("failed to initialize system tray: {err}"),
             }
 
             tokio::task::block_in_place(|| {
@@ -140,13 +225,23 @@ pub async fn run() {
 
             bridge::spawn_browser_bridge();
 
+            if is_silent_wake && TRAY_AVAILABLE.load(Ordering::SeqCst) {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Minimize to system tray so active downloads continue in the background.
-                api.prevent_close();
-                let _ = window.hide();
+                if TRAY_AVAILABLE.load(Ordering::SeqCst) {
+                    // Minimize to system tray so active downloads continue in the background.
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else {
+                    let _ = dispatch!(registry, CloseRequested);
+                }
             }
         })
         .build(tauri::generate_context!())

@@ -1,0 +1,1685 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Download File Info — danDown</title>
+    <link rel="icon" type="image/png" href="icons/icon32.png" />
+    <style>
+      /* =====================================================================
+         danDown Design Tokens (AntiSlopUI + danDown Dark Palette)
+         ===================================================================== */
+      :root {
+        --bg-window: #131315;
+        --bg-surface: #1a1a1e;
+        --bg-elevated: #232328;
+        --bg-input: #161619;
+        --bg-track: rgba(255, 255, 255, 0.08);
+        --bg-hover: rgba(255, 255, 255, 0.06);
+        --bg-zebra: rgba(255, 255, 255, 0.02);
+
+        --border: rgba(255, 255, 255, 0.08);
+        --border-subtle: rgba(255, 255, 255, 0.05);
+        --border-strong: rgba(255, 255, 255, 0.14);
+
+        --text: #f4f4f6;
+        --text-secondary: #c8c8d0;
+        --text-muted: #868690;
+
+        --accent: #3b82f6;
+        --success: #22c55e;
+        --warning: #f59e0b; /* Paused status badge ONLY */
+        --danger: #ef4444;
+        --paused-fill: #5f7396;
+
+        --r-card: 12px;
+        --r-btn: 8px;
+        --r-pill: 999px;
+
+        --sp-1: 4px;
+        --sp-2: 8px;
+        --sp-3: 12px;
+        --sp-4: 16px;
+        --sp-5: 20px;
+
+        --font-sans: 'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        --ease: 160ms ease;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: auto;
+        background: var(--bg-window);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 13px;
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+      }
+
+      /* Shared Buttons (clean single-border focus, no Chrome double ring) */
+      button {
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 500;
+        border-radius: var(--r-btn);
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+        outline: none;
+        transition: background-color var(--ease), border-color var(--ease), color var(--ease),
+          opacity var(--ease);
+      }
+
+      button:focus-visible {
+        border-color: var(--accent);
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-primary {
+        background: var(--text);
+        color: var(--bg-window);
+        font-weight: 600;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: #e2e2e7;
+      }
+
+      .btn-outline {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--text);
+      }
+      .btn-outline:hover:not(:disabled) {
+        background: var(--bg-hover);
+        border-color: var(--border-strong);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--text-muted);
+      }
+      .btn-ghost:hover:not(:disabled) {
+        background: var(--bg-hover);
+        color: var(--text);
+      }
+
+      .btn-danger-hover {
+        background: transparent;
+        border-color: transparent;
+        color: var(--text-muted);
+      }
+      .btn-danger-hover:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: var(--danger);
+      }
+
+      /* Shared Inputs */
+      input[type='text'] {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: var(--r-btn);
+        border: 1px solid var(--border);
+        background: var(--bg-input);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 12.5px;
+        outline: none;
+        transition: border-color var(--ease), background-color var(--ease);
+      }
+
+      input[type='text']:focus {
+        border-color: var(--accent);
+      }
+
+      input::placeholder {
+        color: #5c5c64;
+      }
+
+      /* Custom Dark Dropdown (.cselect) — replaces native OS <select> */
+      .cselect {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .cselect-trigger {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: var(--r-btn);
+        border: 1px solid var(--border);
+        background: var(--bg-input);
+        color: var(--text);
+        font-size: 12.5px;
+        font-weight: 400;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .cselect-trigger:hover:not(:disabled) {
+        border-color: var(--border-strong);
+      }
+
+      .cselect-trigger[aria-expanded='true'],
+      .cselect-trigger:focus-visible {
+        border-color: var(--accent);
+      }
+
+      .cselect-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: left;
+      }
+
+      .cselect-arrow {
+        color: var(--text-muted);
+        flex-shrink: 0;
+        transition: transform var(--ease);
+      }
+
+      .cselect-trigger[aria-expanded='true'] .cselect-arrow {
+        transform: rotate(180deg);
+      }
+
+      .cselect-menu {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 60;
+        background: #202025;
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        padding: 4px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+        max-height: 168px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .cselect-menu.up {
+        top: auto;
+        bottom: calc(100% + 4px);
+      }
+
+      .cselect-item {
+        width: 100%;
+        height: 29px;
+        padding: 0 9px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12.5px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        text-align: left;
+      }
+
+      .cselect-item:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--text);
+      }
+
+      .cselect-item.selected {
+        color: var(--text);
+        font-weight: 500;
+        background: rgba(59, 130, 246, 0.12);
+      }
+
+      .cselect-check {
+        color: var(--accent);
+        flex-shrink: 0;
+      }
+
+      /* =====================================================================
+         POPUP 1: Download File Info (intrinsic height, zero scrollbars)
+         ===================================================================== */
+      .p1-shell {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        width: 100%;
+      }
+
+      .p1-main {
+        padding: var(--sp-4) var(--sp-5) var(--sp-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+
+      /* Unified File Header Card */
+      .p1-file-head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        padding: 12px 14px;
+        border-radius: var(--r-card);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+      }
+
+      .p1-icon-tile {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-subtle);
+        display: grid;
+        place-items: center;
+        color: var(--text);
+        flex-shrink: 0;
+      }
+
+      .p1-icon-tile svg {
+        width: 22px;
+        height: 22px;
+        stroke-width: 1.75;
+      }
+
+      .p1-file-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .p1-filename-input {
+        width: 100%;
+        height: 26px !important;
+        padding: 0 6px !important;
+        margin-left: -6px;
+        border-radius: 6px !important;
+        border: 1px solid transparent !important;
+        background: transparent !important;
+        color: var(--text);
+        font-size: 14px !important;
+        font-weight: 600;
+      }
+
+      .p1-filename-input:hover {
+        background: rgba(255, 255, 255, 0.03) !important;
+      }
+
+      .p1-filename-input:focus {
+        background: var(--bg-input) !important;
+        border-color: var(--accent) !important;
+      }
+
+      .p1-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+        color: var(--text-muted);
+        min-width: 0;
+      }
+
+      .p1-ext {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.06);
+        padding: 1px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+
+      .p1-mime {
+        color: var(--text-muted);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .meta-dot {
+        color: rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
+      }
+
+      .size-readout {
+        font-weight: 600;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+      }
+
+      .size-readout.muted {
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+
+      .skeleton-pill {
+        display: inline-block;
+        width: 56px;
+        height: 11px;
+        border-radius: 4px;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.05) 25%,
+          rgba(255, 255, 255, 0.14) 50%,
+          rgba(255, 255, 255, 0.05) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer-bg 1.3s ease-in-out infinite;
+        vertical-align: middle;
+      }
+
+      @keyframes shimmer-bg {
+        from {
+          background-position: 200% 0;
+        }
+        to {
+          background-position: -200% 0;
+        }
+      }
+
+      /* Editable URL row inside header card */
+      .p1-url-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .p1-url-input {
+        flex: 1;
+        min-width: 0;
+        height: 24px !important;
+        padding: 0 6px !important;
+        margin-left: -6px;
+        border-radius: 6px !important;
+        border: 1px solid transparent !important;
+        background: transparent !important;
+        color: var(--text-muted) !important;
+        font-size: 11.5px !important;
+      }
+
+      .p1-url-input:hover {
+        background: rgba(255, 255, 255, 0.03) !important;
+        color: var(--text-secondary) !important;
+      }
+
+      .p1-url-input:focus {
+        background: var(--bg-input) !important;
+        border-color: var(--accent) !important;
+        color: var(--text) !important;
+      }
+
+      .btn-copy-mini {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 6px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .btn-copy-mini:hover {
+        background: var(--bg-hover);
+        color: var(--text);
+      }
+
+      .copy-tag {
+        font-size: 10.5px;
+        color: var(--success);
+        flex-shrink: 0;
+      }
+
+      /* Clean 2-Row Config Grid */
+      .p1-config {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .field-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .field-label {
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+
+      .input-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .input-row > input,
+      .input-row > .cselect {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .btn-field-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      .btn-sm-text {
+        height: 32px;
+        padding: 0 11px;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .p1-two-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--sp-3);
+      }
+
+      .p1-sub-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+      }
+
+      .remember-wrap {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .remember-wrap input[type='checkbox'] {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .remember-wrap label {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .btn-note-toggle {
+        height: 24px;
+        padding: 0 6px;
+        font-size: 11.5px;
+        color: var(--text-muted);
+      }
+
+      .p1-error {
+        font-size: 11.5px;
+        color: var(--danger);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .p1-footer {
+        height: 48px;
+        padding: 0 var(--sp-5);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        flex-shrink: 0;
+      }
+
+      .p1-footer button {
+        height: 32px;
+        padding: 0 13px;
+      }
+
+      .footer-left,
+      .footer-right {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+
+      .link-btn {
+        height: 28px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        color: var(--text-muted);
+      }
+
+      /* =====================================================================
+         POPUP 2: Download Status (intrinsic height, zero outer scrollbar)
+         ===================================================================== */
+      .p2-shell {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        width: 100%;
+      }
+
+      .p2-main {
+        padding: var(--sp-4) var(--sp-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+
+      /* Top Tabs Bar */
+      .top-row {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+
+      .seg-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 3px;
+        border-radius: 9px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+      }
+
+      .tab-btn {
+        height: 26px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      .tab-btn:hover {
+        color: var(--text);
+      }
+
+      .tab-btn.active {
+        background: var(--bg-elevated);
+        color: var(--text);
+      }
+
+      /* Status badge (amber ONLY here when paused) */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: var(--r-pill);
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        color: #60a5fa;
+        text-transform: capitalize;
+      }
+
+      .status-badge.paused {
+        background: rgba(95, 115, 150, 0.16);
+        border-color: rgba(95, 115, 150, 0.34);
+        color: #93a8cc;
+      }
+
+      .status-badge.completed {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.26);
+        color: var(--success);
+      }
+
+      .status-badge.failed {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.26);
+        color: var(--danger);
+      }
+
+      .badge-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .tab-panel {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+
+      /* Unified Transfer Sheet */
+      .transfer-sheet {
+        border-radius: var(--r-card);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* A. File Header */
+      .sheet-header {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+      }
+
+      .header-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-subtle);
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        color: var(--text);
+      }
+
+      .header-icon svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 1.75;
+      }
+
+      .header-meta {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .header-filename {
+        font-size: 14.5px;
+        font-weight: 600;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .header-url-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .header-url {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .header-url:hover {
+        color: var(--text-secondary);
+      }
+
+      /* B. Hero Progress Block */
+      .sheet-progress {
+        padding: 12px 16px 14px;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .progress-meta {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-3);
+      }
+
+      .progress-sub {
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+
+      .progress-pct {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        min-width: 52px;
+        text-align: right;
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+      }
+
+      .progress-pct.completed {
+        color: var(--success);
+      }
+
+      .progress-track {
+        position: relative;
+        width: 100%;
+        height: 5px;
+        border-radius: var(--r-pill);
+        background: var(--bg-track);
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        position: relative;
+        height: 100%;
+        width: 0%;
+        border-radius: var(--r-pill);
+        background: var(--accent);
+        transition: width var(--ease), background-color var(--ease);
+        overflow: hidden;
+      }
+
+      .progress-fill.active::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.22) 50%,
+          transparent 100%
+        );
+        animation: bar-shimmer 1.4s ease-in-out infinite;
+      }
+
+      .progress-fill.paused {
+        background: var(--paused-fill);
+      }
+
+      .progress-fill.completed {
+        background: var(--success);
+      }
+
+      .progress-fill.failed {
+        background: var(--danger);
+      }
+
+      @keyframes bar-shimmer {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(100%);
+        }
+      }
+
+      /* C. Compact 2x2 Stats Grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      .stats-col {
+        padding: 4px 16px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stats-col:first-child {
+        border-right: 1px solid var(--border-subtle);
+      }
+
+      .stat-row {
+        height: 31px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .stat-value {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .stat-value.muted {
+        color: var(--text-muted);
+      }
+
+      .resume-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--success);
+      }
+
+      .resume-dot.no {
+        background: var(--text-muted);
+      }
+
+      /* D. Single Speed Chart (150px, stays visible when paused) */
+      .sheet-chart {
+        height: 150px;
+        padding: 11px 16px 12px;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .chart-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        font-size: 12px;
+      }
+
+      .chart-title {
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .chart-readouts {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .peak-text {
+        font-size: 11.5px;
+        color: var(--text-muted);
+      }
+
+      .peak-text strong {
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+
+      .chart-speed {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--success);
+        transition: color var(--ease);
+      }
+
+      .chart-speed.paused {
+        color: var(--text-muted);
+      }
+
+      .chart-speed.failed {
+        color: var(--danger);
+      }
+
+      .chart-area-wrap {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .chart-svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* E. 8-Segment Connection Progress */
+      .sheet-connections {
+        padding: 12px 16px 14px;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .conn-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+      }
+
+      .conn-head-label {
+        color: var(--text-muted);
+      }
+
+      .conn-head-count {
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      .segments-bar {
+        display: flex;
+        gap: 5px;
+        height: 5px;
+        width: 100%;
+      }
+
+      .seg-track {
+        flex: 1;
+        height: 5px;
+        border-radius: var(--r-pill);
+        background: var(--bg-track);
+        overflow: hidden;
+      }
+
+      .seg-fill {
+        position: relative;
+        height: 100%;
+        width: 0%;
+        border-radius: var(--r-pill);
+        background: var(--accent);
+        transition: width var(--ease), background-color var(--ease);
+        overflow: hidden;
+      }
+
+      .seg-fill.active::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.24) 50%,
+          transparent 100%
+        );
+        animation: bar-shimmer 1.5s ease-in-out infinite;
+      }
+
+      .seg-fill.paused {
+        background: var(--paused-fill);
+      }
+
+      .seg-fill.completed {
+        background: var(--success);
+      }
+
+      .seg-fill.failed {
+        background: var(--danger);
+      }
+
+      /* Collapsible Details Table (display:none when collapsed) */
+      .details-panel {
+        border-radius: var(--r-card);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        max-height: 148px;
+        overflow-y: auto;
+      }
+
+      table.conn-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      table.conn-table thead th {
+        position: sticky;
+        top: 0;
+        height: 30px;
+        padding: 0 14px;
+        text-align: left;
+        font-weight: 500;
+        color: var(--text-muted);
+        background: var(--bg-elevated);
+        border-bottom: 1px solid var(--border);
+        z-index: 1;
+      }
+
+      table.conn-table tbody tr {
+        height: 30px;
+      }
+
+      table.conn-table tbody td {
+        padding: 0 14px;
+        color: var(--text);
+      }
+
+      table.conn-table tbody tr:nth-child(even) {
+        background: var(--bg-zebra);
+      }
+
+      .conn-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-muted);
+      }
+
+      .conn-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+      .conn-dot.done {
+        background: var(--success);
+      }
+      .conn-dot.paused {
+        background: var(--paused-fill);
+      }
+      .conn-dot.disconnected {
+        background: var(--danger);
+      }
+      .conn-dot.connecting {
+        background: var(--text-muted);
+      }
+
+      .p2-error {
+        font-size: 12px;
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.24);
+        border-radius: 9px;
+        padding: 8px 12px;
+      }
+
+      /* Options on Completion Tab */
+      .options-sheet {
+        border-radius: var(--r-card);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+
+      .option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border-subtle);
+        cursor: pointer;
+        transition: background-color var(--ease);
+      }
+
+      .option-row:last-child {
+        border-bottom: none;
+      }
+
+      .option-row:hover {
+        background: var(--bg-hover);
+      }
+
+      .option-title {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      .option-desc {
+        display: block;
+        font-size: 11.5px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      .switch {
+        position: relative;
+        width: 36px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .switch-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--r-pill);
+        background: var(--bg-track);
+        transition: background-color var(--ease);
+      }
+
+      .switch-slider::before {
+        content: '';
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 3px;
+        top: 3px;
+        border-radius: 999px;
+        background: var(--text);
+        transition: transform var(--ease);
+      }
+
+      .switch input:checked + .switch-slider {
+        background: var(--accent);
+      }
+
+      .switch input:checked + .switch-slider::before {
+        transform: translateX(16px);
+      }
+
+      /* Fixed Footer */
+      .p2-footer {
+        height: 54px;
+        padding: 0 var(--sp-5);
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        flex-shrink: 0;
+        background: var(--bg-window);
+      }
+
+      .p2-footer button {
+        height: 34px;
+        padding: 0 14px;
+        font-size: 12.5px;
+      }
+
+      .chevron {
+        transition: transform var(--ease);
+      }
+      .chevron.open {
+        transform: rotate(180deg);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================================================================
+         POPUP 1: Download File Info
+         =================================================================== -->
+    <div id="setup-view" class="p1-shell">
+      <div class="p1-main">
+        <!-- Unified File Header Card -->
+        <div class="p1-file-head">
+          <div id="file-icon" class="p1-icon-tile" aria-hidden="true"></div>
+          <div class="p1-file-info">
+            <input
+              id="file-name"
+              class="p1-filename-input"
+              type="text"
+              placeholder="Filename"
+              spellcheck="false"
+              aria-label="File name"
+            />
+            <div class="p1-meta-row">
+              <span id="ext-badge" class="p1-ext">FILE</span>
+              <span id="mime-type" class="p1-mime">Detecting…</span>
+              <span class="meta-dot">&bull;</span>
+              <span id="size-readout" class="size-readout num">
+                <span class="skeleton-pill" aria-label="Loading file size"></span>
+              </span>
+            </div>
+            <div class="p1-url-row">
+              <input
+                id="url-input"
+                class="p1-url-input"
+                type="text"
+                spellcheck="false"
+                aria-label="Download URL"
+                placeholder="https://..."
+              />
+              <button
+                id="btn-copy-url"
+                type="button"
+                class="btn-ghost btn-copy-mini"
+                title="Copy URL"
+                aria-label="Copy download URL"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+              </button>
+              <span id="p1-copy-tag" class="copy-tag hidden">Copied</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clean 2-Row Config Grid -->
+        <div class="p1-config">
+          <div class="field-block">
+            <label class="field-label" for="save-dir">Save to folder</label>
+            <div class="input-row">
+              <input
+                id="save-dir"
+                type="text"
+                placeholder="Default Downloads folder"
+                spellcheck="false"
+              />
+              <button
+                id="btn-browse"
+                type="button"
+                class="btn-outline btn-field-icon"
+                title="Choose folder"
+                aria-label="Choose save folder"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="1.25" />
+                  <circle cx="19" cy="12" r="1.25" />
+                  <circle cx="5" cy="12" r="1.25" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="p1-two-cols">
+            <div class="field-block">
+              <span class="field-label">Category</span>
+              <div class="input-row">
+                <div class="cselect" id="cat-select">
+                  <button
+                    type="button"
+                    class="cselect-trigger"
+                    id="cat-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-label="Category"
+                  >
+                    <span class="cselect-label" id="cat-label">General</span>
+                    <svg class="cselect-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  <div class="cselect-menu up hidden" id="cat-menu" role="listbox"></div>
+                </div>
+                <button
+                  id="btn-add-category"
+                  type="button"
+                  class="btn-outline btn-field-icon"
+                  title="Add custom category"
+                  aria-label="Add custom category"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="field-block">
+              <span class="field-label">Connections</span>
+              <div class="cselect" id="conn-select">
+                <button
+                  type="button"
+                  class="cselect-trigger"
+                  id="conn-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  aria-label="Connections"
+                >
+                  <span class="cselect-label" id="conn-label">8 connections</span>
+                  <svg class="cselect-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                <div class="cselect-menu up hidden" id="conn-menu" role="listbox"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inline Category Adder (hidden by default) -->
+          <div id="new-cat-row" class="input-row hidden">
+            <input
+              id="new-cat-input"
+              type="text"
+              placeholder="New category name…"
+              aria-label="New category name"
+            />
+            <button id="btn-save-cat" type="button" class="btn-outline btn-sm-text">Add</button>
+            <button id="btn-cancel-cat" type="button" class="btn-ghost btn-sm-text">Cancel</button>
+          </div>
+
+          <div class="p1-sub-row">
+            <div class="remember-wrap">
+              <input id="remember-path" type="checkbox" />
+              <label id="remember-path-label" for="remember-path">
+                Remember path for "General"
+              </label>
+            </div>
+            <button id="btn-toggle-note" type="button" class="btn-ghost btn-note-toggle">
+              + Add note
+            </button>
+          </div>
+
+          <div id="note-row" class="field-block hidden">
+            <input id="description" type="text" placeholder="Optional note or description" />
+          </div>
+        </div>
+
+        <div id="p1-error" class="p1-error hidden" role="alert"></div>
+      </div>
+
+      <footer class="p1-footer">
+        <div class="footer-left">
+          <button id="btn-browser" type="button" class="btn-ghost link-btn" title="Use Chrome downloader">
+            Browser download
+          </button>
+        </div>
+
+        <div class="footer-right">
+          <button id="btn-later" type="button" class="btn-ghost">Download later</button>
+          <button id="btn-cancel" type="button" class="btn-ghost">Cancel</button>
+          <button id="btn-start" type="button" class="btn-primary">Start download</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- ===================================================================
+         POPUP 2: Download Status
+         =================================================================== -->
+    <div id="progress-view" class="p2-shell hidden">
+      <div class="p2-main">
+        <!-- Top Bar -->
+        <div class="top-row">
+          <div class="seg-tabs" role="tablist" aria-label="Download status views">
+            <button
+              id="tab-status"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-status"
+              class="tab-btn active"
+            >
+              Download status
+            </button>
+            <button
+              id="tab-options"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-options"
+              class="tab-btn"
+            >
+              Options on completion
+            </button>
+          </div>
+
+          <span id="p2-status-badge" class="status-badge">
+            <span class="badge-dot"></span>
+            <span id="p2-status-text">Downloading</span>
+          </span>
+        </div>
+
+        <!-- TAB 1: Download status -->
+        <section id="panel-status" class="tab-panel" role="tabpanel" aria-labelledby="tab-status">
+          <div class="transfer-sheet">
+            <!-- A. File Header -->
+            <div class="sheet-header">
+              <div id="p2-icon" class="header-icon" aria-hidden="true"></div>
+              <div class="header-meta">
+                <div id="p2-filename" class="header-filename">Starting download…</div>
+                <div class="header-url-row">
+                  <span id="p2-url" class="header-url" title="Click to copy URL"></span>
+                  <span id="copy-feedback" class="copy-tag hidden">Copied</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- B. Hero Progress Block -->
+            <div class="sheet-progress">
+              <div class="progress-meta">
+                <span id="uibrik-sub" class="progress-sub num">0.0 MB</span>
+                <span id="p2-bar-pct" class="progress-pct num">0.0%</span>
+              </div>
+              <div
+                class="progress-track"
+                role="progressbar"
+                aria-label="Download progress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div id="p2-bar-fill" class="progress-fill active"></div>
+              </div>
+            </div>
+
+            <!-- C. Compact 2x2 Stats Grid -->
+            <div class="stats-grid">
+              <div class="stats-col">
+                <div class="stat-row">
+                  <span class="stat-label">Transfer rate</span>
+                  <span id="stat-speed" class="stat-value num">0 B/s</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Time left</span>
+                  <span id="stat-eta" class="stat-value num">--</span>
+                </div>
+              </div>
+
+              <div class="stats-col">
+                <div class="stat-row">
+                  <span class="stat-label">Resume support</span>
+                  <span class="stat-value">
+                    <span id="stat-resume-dot" class="resume-dot"></span>
+                    <span id="stat-resume">Yes</span>
+                  </span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Connections</span>
+                  <span id="stat-conns" class="stat-value num">8</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- D. Single Speed Chart (stays visible when paused) -->
+            <div class="sheet-chart">
+              <div class="chart-header">
+                <span class="chart-title">Transfer speed</span>
+                <div class="chart-readouts">
+                  <span class="peak-text num">Peak <strong id="chart-peak">0 B/s</strong></span>
+                  <span id="chart-current-speed" class="chart-speed num">0 B/s</span>
+                </div>
+              </div>
+
+              <div class="chart-area-wrap">
+                <svg id="speed-chart" class="chart-svg" viewBox="0 0 560 96" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="netGradActive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.24" />
+                      <stop offset="100%" stop-color="#22c55e" stop-opacity="0" />
+                    </linearGradient>
+                    <linearGradient id="netGradPaused" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#5f7396" stop-opacity="0.18" />
+                      <stop offset="100%" stop-color="#5f7396" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="0" y1="24" x2="560" y2="24" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                  <line x1="0" y1="48" x2="560" y2="48" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                  <line x1="0" y1="72" x2="560" y2="72" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                  <path id="net-area" fill="url(#netGradActive)" d="" />
+                  <path
+                    id="net-line"
+                    fill="none"
+                    stroke="#22c55e"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    d=""
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- E. 8-Segment Connection Progress -->
+            <div class="sheet-connections">
+              <div class="conn-head">
+                <span class="conn-head-label">Connection progress</span>
+                <span id="segments-summary" class="conn-head-count num">8 of 8 active</span>
+              </div>
+              <div id="segments-bar" class="segments-bar" aria-label="Per-connection progress"></div>
+            </div>
+          </div>
+
+          <!-- Collapsible Details Table -->
+          <div id="details-panel" class="details-panel hidden">
+            <table class="conn-table">
+              <thead>
+                <tr>
+                  <th style="width: 52px">N.</th>
+                  <th style="width: 150px">Downloaded</th>
+                  <th>Info</th>
+                </tr>
+              </thead>
+              <tbody id="conn-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="p2-error" class="p2-error hidden" role="alert"></div>
+        </section>
+
+        <!-- TAB 2: Options on completion -->
+        <section id="panel-options" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-options">
+          <div class="options-sheet">
+            <label class="option-row">
+              <span>
+                <span class="option-title">Open file when complete</span>
+                <span class="option-desc">Automatically launch the downloaded file once finished</span>
+              </span>
+              <span class="switch">
+                <input id="opt-open-file" type="checkbox" />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="option-row">
+              <span>
+                <span class="option-title">Open containing folder</span>
+                <span class="option-desc">Reveal the finished file in File Explorer</span>
+              </span>
+              <span class="switch">
+                <input id="opt-open-folder" type="checkbox" />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="option-row">
+              <span>
+                <span class="option-title">Close this dialog when done</span>
+                <span class="option-desc">Automatically close this window after completion</span>
+              </span>
+              <span class="switch">
+                <input id="opt-close-dialog" type="checkbox" />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+
+            <label class="option-row">
+              <span>
+                <span class="option-title">Shut down PC</span>
+                <span class="option-desc">Power off the computer after this download finishes</span>
+              </span>
+              <span class="switch">
+                <input id="opt-shutdown" type="checkbox" />
+                <span class="switch-slider"></span>
+              </span>
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <!-- Fixed Footer -->
+      <footer class="p2-footer">
+        <div class="footer-left">
+          <button id="btn-primary-action" type="button" class="btn-primary">Pause</button>
+          <button id="btn-open-folder" type="button" class="btn-outline hidden">Open folder</button>
+          <button
+            id="btn-toggle-details"
+            type="button"
+            class="btn-ghost"
+            aria-expanded="false"
+            aria-controls="details-panel"
+          >
+            <span id="details-btn-text">Show details</span>
+            <svg
+              id="details-chevron"
+              class="chevron"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="footer-right">
+          <button id="btn-prog-cancel" type="button" class="btn-danger-hover">Cancel</button>
+        </div>
+      </footer>
+    </div>
+
+    <script src="capture.js"></script>
+  </body>
+</html>

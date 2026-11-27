@@ -78,11 +78,24 @@ impl super::DownloadsManager {
         requested_dir: &Option<String>,
         file_name: &str,
     ) -> Result<(String, String), String> {
+        use tauri::Manager;
         let file_path = match requested_dir {
             Some(path) if !path.trim().is_empty() => {
-                let mut path_buf = PathBuf::from(path);
-                path_buf.push(file_name);
-                File::get_available_filename(&path_buf.to_string_lossy()).await?
+                let cleaned = path
+                    .trim()
+                    .trim_matches('"')
+                    .trim_start_matches(r"\\?\");
+                let mut dir_buf = PathBuf::from(cleaned);
+                if !dir_buf.is_absolute() {
+                    if let Ok(home) = Registry::get_state().app_handle.path().home_dir() {
+                        dir_buf = home.join(dir_buf);
+                    }
+                }
+                tokio::fs::create_dir_all(&dir_buf)
+                    .await
+                    .map_err(|e| format!("Cannot create folder {}: {e}", dir_buf.display()))?;
+                dir_buf.push(file_name);
+                File::get_available_filename(&dir_buf.to_string_lossy()).await?
             }
             _ => {
                 let default_path = File::get_default_path(file_name).await?;
@@ -140,6 +153,14 @@ impl super::DownloadsManager {
     }
 
     pub async fn add_new_download(url: String, options: DownloadOptions) -> Result<(), String> {
+        Self::add_new_download_returning_id(url, options).await?;
+        Ok(())
+    }
+
+    pub async fn add_new_download_returning_id(
+        url: String,
+        options: DownloadOptions,
+    ) -> Result<i64, String> {
         let lower_url = url.trim().to_ascii_lowercase();
         let is_stream_playlist = crate::worker::hls::is_hls_source(&url, "");
         let is_aria2_only_scheme = lower_url.starts_with("magnet:")
@@ -250,13 +271,26 @@ impl super::DownloadsManager {
             let _ = dispatch!(registry, NewDownload, (download_id));
         }
 
-        Ok(())
+        Ok(download_id)
     }
 
-    async fn add_aria2_download(url: String, options: DownloadOptions) -> Result<(), String> {
-        let (inferred_name, ext) = aria2::infer_name_from_uri(&url);
+    async fn add_aria2_download(url: String, options: DownloadOptions) -> Result<i64, String> {
+        let (inferred_name, inferred_ext) = aria2::infer_name_from_uri(&url);
+        let preferred_name = options
+            .file_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or(inferred_name);
+        let ext = std::path::Path::new(&preferred_name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .filter(|e| !e.is_empty())
+            .map(|e| e.to_ascii_lowercase())
+            .unwrap_or(inferred_ext);
         let (file_path, file_name) =
-            Self::resolve_target_path(&options.file_path, &inferred_name).await?;
+            Self::resolve_target_path(&options.file_path, &preferred_name).await?;
 
         let new_download = Self::build_new_download(
             url.trim().to_string(),
@@ -315,7 +349,7 @@ impl super::DownloadsManager {
             aria2::start_download(download_id, &options).await?;
         }
 
-        Ok(())
+        Ok(download_id)
     }
 
     /// Fallback for downloads where aria2's WinTLS/Schannel fails an SSL/TLS handshake:

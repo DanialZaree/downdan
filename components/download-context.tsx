@@ -43,6 +43,10 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       });
     });
 
+    const stopRemoved = listen<number>('download_removed', (ev) => {
+      setDownloads((prev) => prev.filter((d) => d.id !== ev.payload));
+    });
+
     (async () => {
       try {
         const list = await invoke<DownloadType[]>('get_download_list');
@@ -56,6 +60,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
 
     return () => {
       stopItem.then((fn) => fn());
+      stopRemoved.then((fn) => fn());
     };
   }, []);
 
